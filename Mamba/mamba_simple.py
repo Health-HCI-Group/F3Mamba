@@ -46,8 +46,7 @@ class Mamba(nn.Module):
         layer_idx=None,
         device=None,
         dtype=None,
-        mamba_type="normal",
-        bimamba = False
+        mamba_type="v0",
     ):
         factory_kwargs = {"device": device, "dtype": dtype}
         super().__init__()
@@ -83,8 +82,8 @@ class Mamba(nn.Module):
         )
         self.dt_proj = nn.Linear(self.dt_rank, self.d_inner, bias=True, **factory_kwargs)
 
-        self.mamba_type = mamba_type
-        self.bimamba = bimamba
+        # v0:backbone stream，v1:fusion stream, v2:fusion streama with the gate  
+        self.mamba_type = mamba_type 
 
         # Initialize special dt projection to preserve variance at initialization
         dt_init_std = self.dt_rank**-0.5 * dt_scale
@@ -121,46 +120,7 @@ class Mamba(nn.Module):
         self.D = nn.Parameter(torch.ones(self.d_inner, device=device))  # Keep in fp32
         self.D._no_weight_decay = True
         
-        # Cross attention
         self.cross_proj = nn.Linear(self.d_model, self.d_inner, bias=bias, **factory_kwargs)
-
-        # gate parameter
-        gate_d_state = self.d_state * 2 + self.dt_rank  # 8 for the  
-        self.gate_proj_B = nn.Linear(gate_d_state, gate_d_state, bias=False)
-        self.gate_proj_B_Base = nn.Linear(gate_d_state, gate_d_state, bias=False)
-        self.hidden_sigmoid = nn.Linear(gate_d_state*2, 1, bias=False)
-
-        # bidirectional
-        # forked from https://github.com/hustvl/Vim
-        if self.bimamba:
-            A_b = repeat(
-                torch.arange(1, self.d_state + 1, dtype=torch.float32, device=device),
-                "n -> d n",
-                d=self.d_inner,
-            ).contiguous()
-            A_b_log = torch.log(A_b)  # Keep A_b_log in fp32
-            self.A_b_log = nn.Parameter(A_b_log)
-            self.A_b_log._no_weight_decay = True 
-
-            self.conv1d_b = nn.Conv1d(
-                in_channels=self.d_inner,
-                out_channels=self.d_inner,
-                bias=conv_bias,
-                kernel_size=d_conv,
-                groups=self.d_inner,
-                padding=d_conv - 1,
-                **factory_kwargs,
-            )
-
-            self.x_proj_b = nn.Linear(
-                self.d_inner, self.dt_rank + self.d_state * 2, bias=False, **factory_kwargs
-            )
-            self.dt_proj_b = nn.Linear(self.dt_rank, self.d_inner, bias=True, **factory_kwargs)
-
-            self.D_b = nn.Parameter(torch.ones(self.d_inner, device=device))  # Keep in fp32
-            self.D_b._no_weight_decay = True
-
-            self.cross_proj_b = nn.Linear(self.d_model, self.d_inner, bias=bias, **factory_kwargs)
 
         self.out_proj = nn.Linear(self.d_inner, self.d_model, bias=bias, **factory_kwargs)
 
@@ -207,205 +167,93 @@ class Mamba(nn.Module):
                 delta_softplus=True,
             )
         else:
-            if self.bimamba:
-                
-                # 方向1处理
-                A = -torch.exp(self.A_log.float())
-                x, z = xz.chunk(2, dim=1)  # 沿通道维度分割输入
-
-                # 因果卷积处理
-                if causal_conv1d_fn is None:
-                    x = self.act(self.conv1d(x)[..., :seqlen])
-                else:
-                    x = causal_conv1d_fn(
-                        x=x,
-                        weight=rearrange(self.conv1d.weight, "d 1 w -> d w"),
-                        bias=self.conv1d.bias,
-                        activation=self.activation,
-                    )
-
-                # 投影处理（正常/Fusion模式）
-                if self.mamba_type == "normal":
-                    x_dbl = self.x_proj(rearrange(x, "b d l -> (b l) d"))
-                elif self.mamba_type == "fusion" and extra_emb is not None:
-                    extra_emb_a = rearrange(
-                        self.cross_proj.weight @ rearrange(extra_emb, "b l d -> d (b l)"),
-                        "d (b l) -> b d l", l=seqlen
-                    )
-                    if self.cross_proj.bias is not None:
-                        extra_emb_a += rearrange(self.cross_proj.bias, "d -> d 1")
-                    
-                    # step 1 cross attention
-                    # D = extra_emb_a.size(1) 
-
-                    # # extra_emb_a: (B,D,L) , x: (B,D,L)
-                    # cross_attn = torch.bmm(extra_emb_a.permute(0,2,1), x).softmax(dim=-1)
-                    # cross_attn = cross_attn / torch.sqrt(torch.tensor(D, dtype=torch.float32))
-                    # extra_emb_a = torch.bmm(cross_attn, x) + extra_emb_a
-                    
-                    # step 2 generate the ssm parameter
-                    x_dbl = self.x_proj(rearrange(extra_emb_a, "b d l -> (b l) d"))
-
-                # SSM参数处理
-                dt, B, C = torch.split(x_dbl, [self.dt_rank, self.d_state, self.d_state], dim=-1)
-                dt = rearrange(self.dt_proj.weight @ dt.t(), "d (b l) -> b d l", l=seqlen)
-                B = rearrange(B, "(b l) d -> b d l", l=seqlen).contiguous()
-                C = rearrange(C, "(b l) d -> b d l", l=seqlen).contiguous()
-
-                # 选择性扫描
-                y = selective_scan_fn(
-                    x, dt, A, B, C, self.D.float(),
-                    z=z, delta_bias=self.dt_proj.bias.float(),
-                    delta_softplus=True
-                )
-                y = rearrange(y, "b d l -> b l d")  # 调整输出维度
-
-                # 方向2处理（反向）
-                A_b = -torch.exp(self.A_b_log.float())
-                x_b, z_b = xz.flip([-1]).chunk(2, dim=1)  # 翻转序列并分割
-
-                # 反向因果卷积
-                if causal_conv1d_fn is None:
-                    x_b = self.act(self.conv1d_b(x_b)[..., :seqlen])
-                else:
-                    x_b = causal_conv1d_fn(
-                        x=x_b,
-                        weight=rearrange(self.conv1d_b.weight, "d 1 w -> d w"),
-                        bias=self.conv1d_b.bias,
-                        activation=self.activation,
-                    )
-
-                # 反向投影处理
-                if self.mamba_type == "normal":
-                    x_dbl_b = self.x_proj_b(rearrange(x_b, "b d l -> (b l) d"))
-                elif self.mamba_type == "fusion" and extra_emb is not None:
-                    extra_emb_flip = extra_emb.flip([-1])
-
-                    extra_emb_b = rearrange(
-                        self.cross_proj_b.weight @ rearrange(extra_emb_flip, "b l d -> d (b l)"),
-                        "d (b l) -> b d l", l=seqlen
-                    )
-                    if self.cross_proj_b.bias is not None:
-                        extra_emb_b += rearrange(self.cross_proj_b.bias, "d -> d 1")
-
-                    # step 1 cross attention
-                    # D = x_b.size(-1) 
-                    # cross_attn = torch.bmm(extra_emb_b.permute(0,2,1), x_b.permute(0,2,1)).softmax(dim=-1)
-                    # cross_attn = cross_attn / torch.sqrt(torch.tensor(D, dtype=torch.float32))
-                    # extra_emb_b = torch.bmm(cross_attn, x_b) + extra_emb_b
-
-                    # step 2 generate the ssm parameter
-                    x_dbl_b = self.x_proj_b(rearrange(extra_emb_b, "b d l -> (b l) d"))
-
-                # 反向SSM参数
-                dt_b, B_b, C_b = torch.split(x_dbl_b, [self.dt_rank, self.d_state, self.d_state], dim=-1)
-                dt_b = rearrange(self.dt_proj_b.weight @ dt_b.t(), "d (b l) -> b d l", l=seqlen)
-                B_b = rearrange(B_b, "(b l) d -> b d l", l=seqlen).contiguous()
-                C_b = rearrange(C_b, "(b l) d -> b d l", l=seqlen).contiguous()
-
-                # 反向选择性扫描
-                y_b = selective_scan_fn(
-                    x_b, dt_b, A_b, B_b, C_b, self.D_b.float(),  # 使用x_b作为输入
-                    z=z_b, delta_bias=self.dt_proj_b.bias.float(),
-                    delta_softplus=True
-                )
-                y_b = rearrange(y_b, "b d l -> b l d").flip([1])  # 调整维度并翻转序列
-
-                # 合并双向结果
-                out = self.out_proj(y + y_b)
-
+            x, z = xz.chunk(2, dim=1)
+            # Compute short convolution
+            if conv_state is not None:
+                # If we just take x[:, :, -self.d_conv :], it will error if seqlen < self.d_conv
+                # Instead F.pad will pad with zeros if seqlen < self.d_conv, and truncate otherwise.
+                conv_state.copy_(F.pad(x, (self.d_conv - x.shape[-1], 0)))  # Update state (B D W)
+            if causal_conv1d_fn is None:
+                x = self.act(self.conv1d(x)[..., :seqlen])
             else:
-                x, z = xz.chunk(2, dim=1)
-                # Compute short convolution
-                if conv_state is not None:
-                    # If we just take x[:, :, -self.d_conv :], it will error if seqlen < self.d_conv
-                    # Instead F.pad will pad with zeros if seqlen < self.d_conv, and truncate otherwise.
-                    conv_state.copy_(F.pad(x, (self.d_conv - x.shape[-1], 0)))  # Update state (B D W)
-                if causal_conv1d_fn is None:
-                    x = self.act(self.conv1d(x)[..., :seqlen])
-                else:
-                    assert self.activation in ["silu", "swish"]
-                    x = causal_conv1d_fn(
-                        x=x,
-                        weight=rearrange(self.conv1d.weight, "d 1 w -> d w"),
-                        bias=self.conv1d.bias,
-                        activation=self.activation,
-                    )
-
-                # We're careful here about the layout, to avoid extra transposes.
-                # We want dt to have d as the slowest moving dimension
-                # and L as the fastest moving dimension, since those are what the ssm_scan kernel expects.
-                if self.mamba_type == "normal":
-                    x_dbl = self.x_proj(rearrange(x, "b d l -> (b l) d"))  # (bl d)
-                    dt, B, C = torch.split(x_dbl, [self.dt_rank, self.d_state, self.d_state], dim=-1)
-                    dt = self.dt_proj.weight @ dt.t()
-                    dt = rearrange(dt, "d (b l) -> b d l", l=seqlen)
-                    B = rearrange(B, "(b l) dstate -> b dstate l", l=seqlen).contiguous()
-                    C = rearrange(C, "(b l) dstate -> b dstate l", l=seqlen).contiguous()
-
-                elif self.mamba_type == "fusion" and extra_emb is not None:
-                    extra_emb = rearrange(
-                        self.cross_proj.weight @ rearrange(extra_emb, "b l d -> d (b l)"),
-                        "d (b l) -> b d l",
-                        l=seqlen,
-                    )
-                    if self.cross_proj.bias is not None:
-                        extra_emb = extra_emb + rearrange(self.cross_proj.bias.to(dtype=xz.dtype), "d -> d 1")
-
-                    # cross_attn = torch.einsum("bld,bkd->blk", extra_emb, x).softmax(dim=-1)
-                    # extra_emb = torch.einsum("blk,bkd->bld", cross_attn, x) + extra_emb
-
-                    x_dbl_base = self.x_proj(rearrange(x, "b d l -> (b l) d"))  # (bl d)
-                    x_dbl = self.x_proj(rearrange(extra_emb, "b d l -> (b l) d"))  # (bl d)
-                    
-                    # TODO move the gate to the first part
-                    h1 = torch.tanh(self.gate_proj_B(x_dbl))
-                    h2 = torch.tanh(self.gate_proj_B_Base(x_dbl_base))
-                    h = torch.cat((h1, h2), dim=-1)
-                    gate = torch.sigmoid(self.hidden_sigmoid(h))
-                    gate = gate.view(gate.size()[0],1)
-
-                    x_dbl = gate * h1 +(1-gate) * h2
-                    # print(gate.mean())
-
-                    dt_base, B_base, C_base = torch.split(x_dbl_base, [self.dt_rank, self.d_state, self.d_state], dim=-1)
-                    dt,B,C = torch.split(x_dbl, [self.dt_rank, self.d_state, self.d_state], dim=-1)
-
-                    # use the base dt and C, Cross B
-                    dt = self.dt_proj.weight @ dt_base.t()
-                        
-                    # gate part
-                    # h1 = torch.tanh(self.gate_proj_B(B))
-                    # h2 = torch.tanh(self.gate_proj_B_Base(B_base))
-                    # h = torch.cat((h1, h2), dim=-1)
-                    # gate = torch.sigmoid(self.hidden_sigmoid(h))
-                    # gate = gate.view(gate.size()[0],1)
-                    # print(gate.mean())
-                    
-                    # B = gate * h1 + (1-gate) * h2
-
-                    dt = rearrange(dt, "d (b l) -> b d l", l=seqlen)
-                    B = rearrange(B, "(b l) dstate -> b dstate l", l=seqlen).contiguous()
-                    C = rearrange(C_base, "(b l) dstate -> b dstate l", l=seqlen).contiguous()
-                
                 assert self.activation in ["silu", "swish"]
-                y = selective_scan_fn(
-                    x,
-                    dt,
-                    A,
-                    B,
-                    C,
-                    self.D.float(),
-                    z=z,
-                    delta_bias=self.dt_proj.bias.float(),
-                    delta_softplus=True,
-                    return_last_state=ssm_state is not None,
+                x = causal_conv1d_fn(
+                    x=x,
+                    weight=rearrange(self.conv1d.weight, "d 1 w -> d w"),
+                    bias=self.conv1d.bias,
+                    activation=self.activation,
                 )
-                if ssm_state is not None:
-                    y, last_state = y
-                    ssm_state.copy_(last_state)
-                y = rearrange(y, "b d l -> b l d")
-                out = self.out_proj(y)
+
+            # We're careful here about the layout, to avoid extra transposes.
+            # We want dt to have d as the slowest moving dimension
+            # and L as the fastest moving dimension, since those are what the ssm_scan kernel expects.
+            if self.mamba_type == "v0":
+                x_dbl = self.x_proj(rearrange(x, "b d l -> (b l) d"))  # (bl d)
+                dt, B, C = torch.split(x_dbl, [self.dt_rank, self.d_state, self.d_state], dim=-1)
+                dt = self.dt_proj.weight @ dt.t()
+                dt = rearrange(dt, "d (b l) -> b d l", l=seqlen)
+                B = rearrange(B, "(b l) dstate -> b dstate l", l=seqlen).contiguous()
+                C = rearrange(C, "(b l) dstate -> b dstate l", l=seqlen).contiguous()
+
+            elif self.mamba_type == "v1" and extra_emb is not None:
+                extra_emb = rearrange(
+                    self.cross_proj.weight @ rearrange(extra_emb, "b l d -> d (b l)"),
+                    "d (b l) -> b d l",
+                    l=seqlen,
+                )
+                if self.cross_proj.bias is not None:
+                    extra_emb = extra_emb + rearrange(self.cross_proj.bias.to(dtype=xz.dtype), "d -> d 1")
+
+                x_dbl_base = self.x_proj(rearrange(x, "b d l -> (b l) d"))  # (bl d)
+                x_dbl = self.x_proj(rearrange(extra_emb, "b d l -> (b l) d"))  # (bl d)
+
+                dt_base, B_base, C_base = torch.split(x_dbl_base, [self.dt_rank, self.d_state, self.d_state], dim=-1)
+                dt,B,C = torch.split(x_dbl, [self.dt_rank, self.d_state, self.d_state], dim=-1)
+                dt = self.dt_proj.weight @ dt_base.t()
+                dt = rearrange(dt, "d (b l) -> b d l", l=seqlen)
+                B = rearrange(B, "(b l) dstate -> b dstate l", l=seqlen).contiguous()
+                C = rearrange(C_base, "(b l) dstate -> b dstate l", l=seqlen).contiguous()
+            
+            elif self.mamba_type == "v2" and extra_emb is not None:
+                extra_emb = rearrange(
+                    self.cross_proj.weight @ rearrange(extra_emb, "b l d -> d (b l)"),
+                    "d (b l) -> b d l",
+                    l=seqlen,
+                )
+                if self.cross_proj.bias is not None:
+                    extra_emb = extra_emb + rearrange(self.cross_proj.bias.to(dtype=xz.dtype), "d -> d 1")
+
+                x_dbl_base = self.x_proj(rearrange(x, "b d l -> (b l) d"))  # (bl d)
+                x_dbl = self.x_proj(rearrange(extra_emb, "b d l -> (b l) d"))  # (bl d)
+
+                dt_base, B_base, C_base = torch.split(x_dbl_base, [self.dt_rank, self.d_state, self.d_state], dim=-1)
+                dt,B,C = torch.split(x_dbl, [self.dt_rank, self.d_state, self.d_state], dim=-1)
+
+                # use the base dt and C, Cross B
+                dt_base = self.dt_proj.weight @ dt_base.t()
+                    
+                dt = rearrange(dt_base, "d (b l) -> b d l", l=seqlen)
+                B = rearrange((B+B_base)/2, "(b l) dstate -> b dstate l", l=seqlen).contiguous()
+                C = rearrange(C_base, "(b l) dstate -> b dstate l", l=seqlen).contiguous()
+            
+            assert self.activation in ["silu", "swish"]
+            y = selective_scan_fn(
+                x,
+                dt,
+                A,
+                B,
+                C,
+                self.D.float(),
+                z=z,
+                delta_bias=self.dt_proj.bias.float(),
+                delta_softplus=True,
+                return_last_state=ssm_state is not None,
+            )
+            if ssm_state is not None:
+                y, last_state = y
+                ssm_state.copy_(last_state)
+            y = rearrange(y, "b d l -> b l d")
+            out = self.out_proj(y)
         return out
 
     def step(self, hidden_states, conv_state, ssm_state):
@@ -495,140 +343,3 @@ class Mamba(nn.Module):
                 conv_state.zero_()
                 ssm_state.zero_()
         return conv_state, ssm_state
-
-class MambaWithCrossTemporalScanning(nn.Module):
-    def __init__(
-        self,
-        d_model,
-        d_state=16,
-        d_conv=4,
-        expand=2,
-        dt_rank="auto",
-        dt_min=0.001,
-        dt_max=0.1,
-        dt_init="random",
-        dt_scale=1.0,
-        dt_init_floor=1e-4,
-        conv_bias=True,
-        bias=False,
-        use_fast_path=True,
-        layer_idx=None,
-        device=None,
-        dtype=None,
-        mamba_type="normal",
-        bimamba=True,
-    ):
-        factory_kwargs = {"device": device, "dtype": dtype}
-        super().__init__()
-        self.expand = expand
-        self.d_model = d_model
-        self.dt_rank = math.ceil(self.d_model / 16) if dt_rank == "auto" else dt_rank
-        self.d_state = d_state
-        self.d_inner = int(self.expand * self.d_model)
-
-        self.in_proj = nn.Linear(self.d_model, self.d_inner * 2, bias=bias, **factory_kwargs)
-        self.cross_proj = nn.Linear(self.d_model, self.d_inner, bias=bias, **factory_kwargs)
-        
-        # 动态A矩阵调整（可选）
-        A = repeat(
-            torch.arange(1, self.d_state + 1, dtype=torch.float32, device=device),
-            "n -> d n",
-            d=self.d_inner,
-        ).contiguous()
-        A_log = torch.log(A)  # Keep A_log in fp32
-        self.A_log = nn.Parameter(A_log)
-        self.A_log._no_weight_decay = True
-        self.A_adapter = nn.Linear(self.d_inner, self.d_state**2)
-
-        # D "skip" parameter
-        self.D = nn.Parameter(torch.ones(self.d_inner, device=device))  # Keep in fp32
-        self.D._no_weight_decay = True
-
-        self.gate_bias = nn.Parameter(torch.tensor(0.))  # 可学习基准门控值
-        self.gate_scale = nn.Parameter(torch.ones(1))    # 跨模态影响强度
-        self.gate_proj = nn.Linear(self.dt_rank + 2*self.d_state, self.d_state)
-        
-        # 保留原始参数
-        self.x_proj = nn.Linear(
-            self.d_inner, self.dt_rank + 2*self.d_state, bias=False
-        )
-        # 不共享
-        self.extra_emb_proj = nn.Linear(
-            self.d_inner, self.dt_rank + 2*self.d_state, bias=False
-        )
-
-        self.dt_proj = nn.Linear(self.dt_rank, self.d_inner, bias=True, **factory_kwargs)
-        self.out_proj = nn.Linear(self.d_inner, self.d_model, bias=bias, **factory_kwargs)
-
-    def forward(self, hidden_states, extra_emb=None, inference_params=None):
-
-        _,seqlen,_ = hidden_states.shape
-        # 原始特征处理
-        xz = rearrange(
-            self.in_proj.weight @ rearrange(hidden_states, "b l d -> d (b l)"),
-            "d (b l) -> b d l",
-            l=seqlen,
-        )
-        if self.in_proj.bias is not None:
-            xz = xz + rearrange(self.in_proj.bias.to(dtype=xz.dtype), "d -> d 1")
-
-        x, z = xz.chunk(2, dim=1)
-
-        # 跨模态融合分支
-        # 基础参数
-        x_dbl = self.x_proj(rearrange(x, "b d l -> (b l) d"))
-        dt, B_base, C_base = torch.split(
-            x_dbl, [self.dt_rank, self.d_state, self.d_state], dim=-1
-        )
-
-        # 跨模态特征提取
-        extra_emb = rearrange(
-            self.cross_proj.weight @ rearrange(extra_emb, "b l d -> d (b l)"),
-            "d (b l) -> b d l",
-            l=seqlen,
-        )
-        if self.cross_proj.bias is not None:
-            extra_emb = extra_emb + rearrange(self.cross_proj.bias.to(dtype=xz.dtype), "d -> d 1")
-
-
-        cross_feat = self.extra_emb_proj(rearrange(extra_emb, "b d l -> (b l) d"))  # (bl d)
-
-        _, B_cross, C_cross = torch.split(
-            cross_feat, [self.dt_rank, self.d_state, self.d_state], dim=-1
-        )
-
-        # gate_base = torch.sigmoid(self.gate_bias)  # 初始0.5的可学习基准值
-
-        # # 跨模态影响量（维度自适应）
-        # gate_delta = self.gate_scale * torch.tanh(self.gate_proj(cross_feat))
-
-        # # 综合门控值
-        # gate = gate_base + gate_delta
-        # gate = torch.clamp(gate, 0, 1)  # 确保门控值在[0,1]范围内
-
-        # 应用门控
-        B = B_cross
-        # B = (1 - gate) * B_base + gate * B_cross
-        C = C_base
-        # C = (1 - gate) * C_base + gate * C_cross
-        
-        # 动态A矩阵调整（可选）
-        # A_adj = self.A_adapter(rearrange(cross_feat, "b d l -> (b l) d"))
-        # A_adj = rearrange(A_adj, "(b l) (d1 d2) -> b d1 d2 l", 
-        #                 d1=self.d_state, d2=self.d_state, l=seqlen)
-        # A = -torch.exp(self.A_log.float()) * (1 + 0.1 * A_adj)
-        A = -torch.exp(self.A_log.float())
-
-        # 统一参数处理
-        dt = rearrange(self.dt_proj.weight @ dt.t(), "d (b l) -> b d l", l=seqlen)
-        B = rearrange(B, "(b l) dstate -> b dstate l", l=seqlen).contiguous()
-        C = rearrange(C, "(b l) dstate -> b dstate l", l=seqlen).contiguous()
-        
-        # 选择性扫描
-        y = selective_scan_fn(
-            x, dt, A, B, C, self.D.float(),
-            z=z, delta_bias=self.dt_proj.bias.float(),
-            delta_softplus=True
-        )
-        
-        return self.out_proj(rearrange(y, "b d l -> b l d"))
