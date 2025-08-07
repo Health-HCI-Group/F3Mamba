@@ -18,6 +18,7 @@ Continuous physiological monitoring is essential for early detection and managem
 
 ### $\mathrm{M}^3\text{PD}$ 
 The dataset comprises synchronized physiological data from 60 participants across two collection environments:
+<img src="Fig/Collection.png" width="200">
 
 #### Lab Environment
 - **Participants**: 13 healthy volunteers
@@ -27,7 +28,7 @@ The dataset comprises synchronized physiological data from 60 participants acros
 #### Hospital Environment  
 - **Participants**: 47 cardiovascular patients
 - **Setting**: Clinical environment
-- **Duration**: ~15 minutes per session
+- **Duration**: ~30 seconds per session
   
 #### Dataset Organization
 
@@ -181,11 +182,11 @@ trainer.train(train_loader, val_loader)
 If you find this work useful, please cite our paper:
 
 ```bibtex
-@article{zhang2024dual,
+@article{tang2025dual,
   title={Dual-Camera Fusion for Robust Video-Based Photoplethysmography on Smartphones},
-  author={Zhang, Author and Co-authors},
-  journal={Journal Name},
-  year={2024}
+  author={Jiankai Tang, Tao Zhang, Jia Li, Yiru Zhang, Mingyu Zhang, Kegang Wang, Yuming Hao, Bolin Wang, Haiyang Li, Yuanchun Shi, Yuntao Wang, and Sichong Qian},
+  journal={arxiv},
+  year={2025}
 }
 ```
 
