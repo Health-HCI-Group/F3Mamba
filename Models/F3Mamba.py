@@ -15,10 +15,10 @@ def conv_block(in_channels, out_channels, kernel_size, stride, padding=(0, 0, 0)
         layers.append(nn.ELU(inplace=True))
     return nn.Sequential(*layers)
 
-class CDC_T(nn.Module):
+class CDT(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=1,
                  padding=1, dilation=1, groups=1, bias=False, theta=0.2):
-        super(CDC_T, self).__init__()
+        super(CDT, self).__init__()
         self.conv = nn.Conv3d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding,
                               dilation=dilation, groups=groups, bias=bias)
         self.theta = theta
@@ -158,7 +158,7 @@ class F3Mamba(nn.Module):
 
     def _build_block(self, channels, theta):
         return nn.Sequential(
-            CDC_T(channels, channels, theta=theta),
+            CDT(channels, channels, theta=theta),
             nn.BatchNorm3d(channels),
             nn.ReLU(),
             nn.Dropout(self.drop_rate),

@@ -583,6 +583,7 @@ class MultimodalDataLoader():
         Args:
             path (str): The directory path where the datasets will be saved.
         """
+        os.makedirs(path, exist_ok=True)
         user_ids = self.dirs.keys()
         for user_id in user_ids:
             dataset_df = self.load_merged_all_data(user_id)
@@ -592,7 +593,7 @@ class MultimodalDataLoader():
 if __name__ == "__main__":
     # Example usage
     config = {
-        "data_path": "vPPG-Fusion/LabDataset",
+        "data_path": "F3mamba/Dataset/LabDataset",
         "front_standard_type": "diff_normalize",
         "back_standard_type": "diff_normalize",
         "label_standard_type": "diff_normalize",
@@ -603,4 +604,4 @@ if __name__ == "__main__":
     }
     
     data_loader = MultimodalDataLoader(config)
-    data_loader.save_datasets("./Dataset")
+    data_loader.save_datasets("./ProcessedDataset")

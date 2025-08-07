@@ -6,7 +6,7 @@ import config
 from Process.Trainer import Trainer
 from Process.data_process import MultimodalDataset
 from Models.RhythmFormer import RhythmFormer
-from Models.MultiPhysNet import PhysNet_padding_Encoder_Decoder_MAX
+from Models.PhysNet import PhysNet_padding_Encoder_Decoder_MAX
 from Models.Physformer import ViT_ST_ST_Compact3_TDC_gra_sharp
 from Models.PhysMamba import PhysMamba
 from Models.F3Mamba import F3Mamba
@@ -18,19 +18,9 @@ args = config.get_config()
 
 _dataset_cache = {}
 all_dataset_ids = {
-    "Lab_multimodal": [1, 3, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18],
+    "Lab_multimodal": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
 }
 
-def get_cross_validation_ids(all_ids, fold_idx):
-    """Split user IDs into 3-fold cross-validation."""
-    fold_size = len(all_ids) // 3
-    test_start = fold_idx * fold_size
-    test_end = (fold_idx + 1) * fold_size if fold_idx < 2 else len(all_ids)
-    
-    test_ids = all_ids[test_start:test_end]
-    train_ids = all_ids[:test_start] + all_ids[test_end:]
-    
-    return train_ids, test_ids
 
 def load_dataloader_user_ids(train_ids=[1], test_ids=[3]):
     """
@@ -51,7 +41,7 @@ def load_dataloader_user_ids(train_ids=[1], test_ids=[3]):
         if user_id in all_dataset_ids["Lab_multimodal"]:
             dataset_name = "Lab_multimodal"
 
-        path = fr'vPPG-Fusion/Dataset/{dataset_name}/front_{args.front_standard_type}_label_{args.label_standard_type}_dataset_{user_id}.pth'
+        path = fr'F3Mamba/Dataset/ProcessedDataset/{dataset_name}/front_{args.front_standard_type}_label_{args.label_standard_type}_dataset_{user_id}.pth'
         cache_key = (dataset_name, args.front_standard_type, args.label_standard_type, user_id)
         
         if cache_key in _dataset_cache:
@@ -64,12 +54,6 @@ def load_dataloader_user_ids(train_ids=[1], test_ids=[3]):
         print(f"Loading {path}: {load_time:.2f}")
 
         if dataset_name == "Lab_multimodal":
-            special_indices = {
-                9: [i for i in range(len(dataset)) if i < 100 or i > 125],
-            }
-            if user_id in special_indices:
-                dataset = Subset(dataset, special_indices[user_id])
-
             dataset = Subset(dataset, range(3, len(dataset)-1))
         else:
             raise ValueError(f"Unsupported dataset name: {dataset_name}")
@@ -156,15 +140,9 @@ def three_fold_run():
         setattr(args, key, wandb.config[key])
 
     print(f"Start dataset: {args.dataset_name} loading!")
-    
-    if args.cross_validation:
-        all_ids = all_dataset_ids[args.dataset_name]
-        train_ids, test_ids = get_cross_validation_ids(all_ids=all_ids, fold_idx=args.fold_idx)
-        args.train_ids = train_ids
-        args.test_ids = test_ids
-    else:
-        train_ids = args.train_ids
-        test_ids = args.test_ids
+
+    train_ids = args.train_ids
+    test_ids = args.test_ids
         
     print(f"Training IDs: {train_ids}")
     print(f"Testing IDs: {test_ids}")

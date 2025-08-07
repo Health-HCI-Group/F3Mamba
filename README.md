@@ -4,9 +4,9 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.4+-red.svg)](https://pytorch.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-> ❤️ **Please remember to ⭐ this repo if you find it useful and cite our work if you end up using it in your work!** ❤️
+> ❤️ **Please remember to ⭐ this repo if you find it useful and cite our work if you end up using it in your work!** 
 > 
-> ❤️ **If you have any questions or concerns, please create an issue 📝!** ❤️
+> ❤️ **If you have any questions or concerns, please create an issue 📝!** 
 
 ---
 
@@ -32,7 +32,7 @@ The dataset comprises synchronized physiological data from 60 participants acros
 #### Dataset Organization
 
 ```
-📁 Lab_Environment/
+📁 LabDataset/
 ├── 📁 1/
 │   ├── 📁 DualCamera_<timestamp>/
 │   │   ├── 🎥 front_camera_<timestamp>.mp4           # Facial video recording
@@ -63,7 +63,7 @@ The dataset comprises synchronized physiological data from 60 participants acros
 | **Video Resolution** | 128×128 pixels |
 | **Frame Rate** | 30 FPS |
 | **Sequence Length** | 160 frames (5.33 seconds) |
-| **Data Format** | PyTorch tensors (.pt files) |
+| **Data Format** | PyTorch tensors (.pth files) |
 
 
 ## 🏗️ F³Mamba Architecture
@@ -89,12 +89,13 @@ The table shows generalization performance when training on Lab dataset and test
 ## 🔧 Setup
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/vPPG-Fusion.git
-cd vPPG-Fusion
+git clone https://github.com/Health-HCI-Group/F3Mamba.git
+
+cd F3Mamba
 
 # Create conda environment
-conda create -n vppg-fusion python=3.8
-conda activate vppg-fusion
+conda create -n F3Mamba python=3.8
+conda activate F3Mamba
 
 # Install dependencies
 pip install -r requirements.txt
@@ -104,7 +105,7 @@ pip install -r requirements.txt
 ### Basic Data Loading
 
 ```python
-from data_process import MultimodalDataLoader
+from Process.data_process import MultimodalDataLoader
 import config
 
 # Initialize configuration
@@ -113,7 +114,7 @@ args = config.get_config()
 # Load Lab dataset
 lab_loader = MultimodalDataLoader(config=args)
 lab_loader.dataset_name = "Lab_multimodal"
-lab_loader._test_save_datasets()
+lab_loader.save_datasets("./ProcessedDataset")
 ```
 ### Data Structure
 
