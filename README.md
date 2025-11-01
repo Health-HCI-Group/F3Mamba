@@ -1,18 +1,14 @@
-# Dual-Camera Fusion for Robust Video-Based Photoplethysmography on Smartphones
+# $\mathrm{M}^3\text{PD}$ Dataset: Enabling Dual-View Photoplethysmography on Smartphones in Lab and Clinical Settings
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.4+-red.svg)](https://pytorch.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-> ❤️ **Please remember to ⭐ this repo if you find it useful and cite our work if you end up using it in your work!** 
-> 
-> ❤️ **If you have any questions or concerns, please create an issue 📝!** 
-
 ---
 
 ## Abstract
-
-Continuous physiological monitoring is essential for early detection and management of cardiovascular conditions, but current methods require specialized equipment that limits accessibility. Video-based photoplethysmography (rPPG) via smartphones offers a promising non-invasive alternative, yet suffers from reliability challenges due to motion artifacts, lighting variations, and single-modality constraints. To address these limitations, we introduce the $\mathrm{M}^3\text{PD}$ dataset—the first publicly available dual-camera mobile rPPG dataset—comprising synchronized facial and fingertip videos captured simultaneously via front and rear smartphone cameras from 60 participants (including 47 cardiovascular patients). This dataset uniquely represents real-world mobile health monitoring scenarios, including handheld device movement and varying clinical conditions. Based on this multimodal approach, we propose the $\mathrm{F}^3\text{Mamba}$ framework, which effectively integrates complementary physiological signals across modalities using temporal difference Mamba blocks and a novel fusion Mamba architecture. Our framework achieves significantly improved heart rate estimation accuracy (MAE reduction of 21.9-30.2\%) compared to state-of-the-art approaches, with enhanced robustness in challenging real-world conditions. These advances demonstrate the clinical potential of smartphone-based vital sign monitoring for point-of-care assessment and remote patient monitoring.
+Portable physiological monitoring is essential for early detection and management of cardiovascular disease, but current methods often require specialized equipment that limits accessibility or impose impractical postures that patients cannot maintain. Video-based photoplethysmography on smartphones offers a convenient non-invasive alternative, yet it still faces reliability challenges caused by motion artifacts, lighting variations, and single-view constraints. Few studies have demonstrated that this technology can be reliably applied to physiological monitoring of cardiovascular patients, and no widely used open datasets exist for researchers to examine its cross-device accuracy. To address these limitations, we introduce the $\mathrm{M}^3\text{PD}$ dataset—the first publicly available dual-view mobile rPPG dataset—comprising synchronized facial and fingertip videos captured simultaneously via front and rear smartphone cameras from 60 participants (including 47 cardiovascular patients). Building on this multi-view setting, we further propose the $\mathrm{F}^3\text{Mamba}$ framework, which effectively integrates complementary physiological signals across views using temporal-difference Mamba blocks and a fusion Mamba architecture. Our framework achieves significantly improved heart-rate estimation accuracy (MAE reduction of 21.9--30.2\%) compared with state-of-the-art approaches, while also showing enhanced robustness in challenging real-world conditions.
+![F³Mamba Model Structure](Fig/dual_recording_samples.png)
 
 ## 📁 Dataset
 
@@ -24,7 +20,7 @@ The dataset comprises synchronized physiological data from 60 participants acros
 - **Setting**: Controlled laboratory conditions
 - **Duration**: ~15 minutes per session
 
-#### Hospital Environment  
+#### Clinic Environment  
 - **Participants**: 47 cardiovascular patients
 - **Setting**: Clinical environment
 - **Duration**: ~15 minutes per session
@@ -69,7 +65,7 @@ The dataset comprises synchronized physiological data from 60 participants acros
 ## 🏗️ F³Mamba Architecture
 The **F³Mamba** framework is designed to effectively integrate complementary physiological signals from dual-camera smartphone recordings. Our architecture leverages the power of Mamba blocks for long-range temporal dependency modeling while introducing novel fusion mechanisms for multimodal integration.
 
-![F³Mamba Model Structure](Fig/model.png)
+![F³Mamba Model Structure](Fig/dual_model_frame.png)
 
 ## 📊 Benchmarks
 
@@ -85,21 +81,6 @@ The table shows generalization performance when training on Lab dataset and test
 
 ![Intra-dataset Performance](Fig/cross_dataset_results.png)
 
-
-## 🔧 Setup
-```bash
-# Clone the repository
-git clone https://github.com/Health-HCI-Group/F3Mamba.git
-
-cd F3Mamba
-
-# Create conda environment
-conda create -n F3Mamba python=3.8
-conda activate F3Mamba
-
-# Install dependencies
-pip install -r requirements.txt
-```
 
 ## 💻 Examples of Data Processing
 ### Basic Data Loading
@@ -174,29 +155,3 @@ model = F3Mamba(args)
 trainer = Trainer(model, args)
 trainer.train(train_loader, val_loader)
 ```
-
-
-## Citation
-
-If you find this work useful, please cite our paper:
-
-```bibtex
-@article{zhang2024dual,
-  title={Dual-Camera Fusion for Robust Video-Based Photoplethysmography on Smartphones},
-  author={Zhang, Author and Co-authors},
-  journal={Journal Name},
-  year={2024}
-}
-```
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🤝 Contributing
-
-We welcome contributions! Please feel free to submit pull requests or create issues for bugs and feature requests.
-
----
-
-⭐ **Star this repo if you find it helpful!** ⭐
