@@ -63,21 +63,6 @@ The **F³Mamba** framework is designed to effectively integrate complementary ph
 
 ![F³Mamba Model Structure](Fig/dual_model_frame.png)
 
-## 📊 Benchmarks
-
-### intra-dataset experiments
-
-The table shows Mean Absolute Error (MAE), Root Mean Square Error (RMSE), and Pearson correlation coefficient performance of 3-fold cross-validation experiments on Lab and Hospital datasets:
-
-![Intra-dataset Performance](Fig/intra_dataset_results.png)
-
-### cross-dataset experiments
-
-The table shows generalization performance when training on Lab dataset and testing on Hospital dataset:
-
-![Intra-dataset Performance](Fig/cross_dataset_results.png)
-
-
 ## 💻 Examples of Data Processing
 ### Basic Data Loading
 
