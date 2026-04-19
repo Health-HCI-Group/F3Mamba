@@ -138,6 +138,14 @@ trainer = Trainer(model, args)
 trainer.train(train_loader, val_loader)
 ```
 
+## 🗝️ Access and Usage
+
+There are two ways for downloads： OneDrive and Baidu Netdisk. 
+
+To access the dataset, you are supposed to download this [data release agreement TBD].  
+Please scan and dispatch the completed agreement via your institutional email to <tjk24@mails.tsinghua.edu.cn> and cc <yuntaowang@tsinghua.edu.cn>. The email should have the subject line 'LADH Access Request -  your institution.' In the email,  outline your institution's **website** and **publications** for seeking access to the LADH, including its intended application in your specific research project. The email should be sent by a **faculty** rather than a student.   
+
+
 ## Citation
 
 If you find this work useful, please cite our paper:
@@ -150,6 +158,8 @@ If you find this work useful, please cite our paper:
   year={2025}
 }
 ```
+
+
 
 ## 📄 License
 
