@@ -177,10 +177,6 @@ Please scan and dispatch the completed agreement via your institutional email to
 | RhythmFormer | Finger | 21.790 | 23.571 | 29.379 | 0.025 | 24.107 | 31.836 | 31.081 | -0.341 |
 | PhysMamba | Face | 14.041 | 13.341 | 22.759 | 0.428 | 15.481 | 20.269 | 20.032 | 0.032 |
 | PhysMamba | Finger | 9.542 | 9.247 | 18.088 | 0.630 | 9.480 | 11.411 | 15.524 | 0.460 |
-| EarlyFuse-Concat| Face+Finger | 10.891 | 9.894 | 22.195 | 0.350 | 9.235 | 11.709 | 14.484 | 0.533 |
-| LateFuse-Concat | Face+Finger | 15.930 | 16.820 | 20.965 | 0.045 | 14.066 | 17.443 | 17.463 | 0.152 |
-| LateFuse-Avg    | Face+Finger | 7.121  | 7.208 | 13.622 | 0.598  | 8.853  | 10.940 | 14.179 | 0.539 |
-| SummitVital     | Face+Finger | 6.971 | 7.168 | 13.636 | 0.612  | 9.954  | 12.645  | 15.492 | 0.460 |
 | **$\mathrm{F}^3\text{Mamba}$ (Ours)** | **Face+Finger** | **6.664** | **6.859** | **12.796** | **0.636** | **7.405** | **9.308** | **10.669** | **0.753** |
 
 ### Cross-dataset Testing Results on $\mathrm{M}^3\text{PD}$
@@ -195,23 +191,7 @@ Please scan and dispatch the completed agreement via your institutional email to
 | RhythmFormer | Finger | 15.489 | 19.822 | 19.413 | -0.090 | 19.160 | 22.908 | 25.616 | -0.085 |
 | PhysMamba | Face | 12.352 | 16.917 | 16.776 | 0.274 | 14.053 | 16.740 | 19.352 | 0.218 |
 | PhysMamba | Finger | 8.629 | 10.840 | 12.850 | 0.599 | 8.522 | 9.302 | 15.640 | 0.523 |
-| EarlyFuse-Concat| Face+Finger | 8.250 | 10.841 | 12.634 | 0.623 | 10.091 | 11.085 | 17.347 | 0.439 |
-| LateFuse-Concat | Face+Finger | 14.788 | 16.857 | 19.404 | -0.184 | 16.357 | 19.126 | 21.108 | -0.046 |
-| LateFuse-Avg    | Face+Finger | 8.974  | 10.757 | 16.494 | 0.358  | 9.624  | 10.011 | 18.527 | 0.337 |
-| SummitVital     | Face+Finger | 10.445 | 11.627 | 18.439 | 0.409  | 8.515  | 9.451  | 16.589 | 0.575 |
 | **$\mathrm{F}^3\text{Mamba}$ (Ours)** | **Face+Finger** | **8.204** | **10.115** | **12.383** | **0.644** | **9.360** | **10.938** | **15.059** | **0.546** |
-
-### Complexity Comparison
-
-| Method | Param (M) ↓ | FLOPs (G) ↓ | Storage (MB) ↓ | Latency (ms) ↓ |
-| :--- | :---: | :---: | :---: | :---: |
-| PhysNet | 8.85 | 70.32 | 3.38 | 16.99 |
-| PhysFormer | 73.81 | 38.53 | 12.69 | 15.71 |
-| RhythmFormer | 33.26 | 49.53 | 75.80 | 17.07 |
-| PhysMamba | 7.59 | 60.40 | 2.90 | 23.74 |
-| **$\mathrm{F}^3\text{Mamba}$ (Ours)** | **13.87** | **113.46** | **5.29** | **26.70** |
-
-*Note: The latency is calculated using 160 frames ($160 \times 128 \times 128$) as input on a single RTX 3090 GPU.*
 
 
 ## Citation
