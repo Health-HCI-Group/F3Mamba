@@ -1,0 +1,24 @@
+program: run_sweep_agent.py
+method: grid
+description: >
+  Compare single-view (back, front) vs dual-view BP estimation
+  across seq_mult=2,4,6,8. Non-overlap data.
+  InfinitePulseEnhancedBP / LateFusionInfinitePulseEnhancedBP.
+
+metric:
+  name: bp_sys_MAE
+  goal: minimize
+
+parameters:
+  modal:
+    values: ['back', 'front', 'dual']
+  seq_mult:
+    values: [2, 4, 6, 8]
+  fusion_mode:
+    value: 'sums'
+  data_suffix:
+    value: ''
+  lr:
+    value: 6.25e-5
+  epochs:
+    value: 10

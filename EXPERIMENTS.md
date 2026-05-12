@@ -14,50 +14,65 @@
 **研究目标**: 双视角融合应该优于单视角 (dual MAE < single MAE)
 **实验结果**: 双视角 ≈ 单视角，甚至略差 ❌
 
-### 公平对比（相同数据配置，非overlap，seq_mult=2）
+### 公平对比（相同数据配置，非overlap）
 
-| 模型 | 视角 | 帧数 | Fold1 sys/dia | Fold2 sys/dia | Fold3 sys/dia | Avg sys | Avg dia |
-|------|------|------|---------------|---------------|---------------|---------|---------|
-| **InfinitePulseEnhancedBP** | **back** | 320 | 12.42/8.35 | 12.69/8.52 | 10.52/7.40 | **11.88** | **8.09** |
-| **InfinitePulseEnhancedBP** | **front** | 320 | 12.36/8.35 | 12.70/8.52 | 10.48/7.42 | **11.85** | **8.10** |
-| **LateFusionEnhancedBP** | front+back | 320 | 12.54/8.34 | 12.70/8.52 | 10.50/7.39 | **11.91** | **8.08** |
+| 视角 | seq_mult=2 (320帧) | seq_mult=4 (640帧) |
+|------|-------------------|-------------------|
+| **back** | **11.88** | **11.92** |
+| **front** | **11.85** | **11.90** |
+| **dual** | **11.91** | **11.96** |
 
 **关键发现**: 
-- 单视角 back: 11.88 mmHg
-- 单视角 front: 11.85 mmHg
-- 双视角 fusion: 11.91 mmHg
-- **双视角 (11.91) 反而比单视角 (11.85-11.88) 略差！**
+- 双视角始终 ≈ 单视角，无改善
+- seq_mult=4 没有比 seq_mult=2 更好
+- front 和 back 单视角性能基本相同
 
 ---
 
 ## 详细实验结果
 
-### 1. 单视角实验 (Single-View)
+### 1. 公平对比实验（非overlap数据，统一配置）
+
+#### seq_mult=2 (320帧, batch=2, effective=16)
+
+| 模型 | 视角 | Fold1 sys/dia | Fold2 sys/dia | Fold3 sys/dia | Avg sys | Avg dia |
+|------|------|---------------|---------------|---------------|---------|---------|
+| InfinitePulseEnhancedBP | **back** | 12.42/8.35 | 12.69/8.52 | 10.52/7.40 | **11.88** | **8.09** |
+| InfinitePulseEnhancedBP | **front** | 12.36/8.35 | 12.70/8.52 | 10.48/7.42 | **11.85** | **8.10** |
+| LateFusionEnhancedBP sums | front+back | 12.54/8.34 | 12.70/8.52 | 10.50/7.39 | **11.91** | **8.08** |
+
+#### seq_mult=4 (640帧, single batch=2, dual batch=1)
+
+| 模型 | 视角 | Fold1 sys/dia | Fold2 sys/dia | Fold3 sys/dia | Avg sys | Avg dia |
+|------|------|---------------|---------------|---------------|---------|---------|
+| InfinitePulseEnhancedBP | **back** | 12.36/8.35 | 12.93/8.51 | 10.46/7.37 | **11.92** | **8.08** |
+| InfinitePulseEnhancedBP | **front** | 12.34/8.36 | 12.94/8.50 | 10.43/7.40 | **11.90** | **8.09** |
+| LateFusionEnhancedBP sums | front+back | 12.51/8.33 | 12.93/8.50 | 10.45/7.37 | **11.96** | **8.07** |
+
+#### seq_mult=6 (960帧) - 待跑
+#### seq_mult=8 (1280帧) - 待跑
+
+---
+
+### 2. 历史实验（旧配置，仅供参考）
 
 #### Back Camera Only
 
 | Experiment | Backbone | Data | Frames | Fold1 sys/dia | Fold2 sys/dia | Fold3 sys/dia | Avg sys | Avg dia |
 |------------|----------|------|--------|---------------|---------------|---------------|---------|---------|
-| **back_overlap_seq2** | InfinitePulseEnhancedBP | overlap stride40 | **320** | 12.40/8.34 | 12.65/8.48 | 10.58/7.47 | **11.88** | **8.10** |
+| back_overlap_seq2 | InfinitePulseEnhancedBP | overlap stride40 | **320** | 12.40/8.34 | 12.65/8.48 | 10.58/7.47 | **11.88** | **8.10** |
 | enhancedBP_back_4gpu | InfinitePulseEnhancedBP | overlap stride40 | 160 | 12.24/7.97 | 12.86/8.28 | 10.54/7.58 | **11.88** | **7.94** |
 | seq320 | InfinitePulseMultitask | overlap stride40 | 320 | 12.46/8.13 | 12.88/8.65 | 11.28/8.39 | **12.21** | **8.39** |
 | seq640 | InfinitePulseMultitask | overlap stride40 | 640 | 12.70/8.29 | 12.70/8.48 | 10.69/7.96 | **12.03** | **8.24** |
 
-**最佳单视角**: InfinitePulseEnhancedBP + overlap stride40 + seq_mult=2 = **bp_sys 11.88 mmHg**
+#### Dual-View (Front+Back)
 
-#### Front Camera Only (待补充)
-❌ 缺失 front-only 实验，需补充以完整对比
-
----
-
-### 2. 双视角实验 (Dual-View: Front + Back)
-
-| Experiment | Backbone | Fusion | Data | Frames | Fold1 sys/dia | Fold2 sys/dia | Fold3 sys/dia | Avg sys | Avg dia |
-|------------|----------|--------|------|--------|---------------|---------------|---------------|---------|---------|
-| **overlap_seq2** | LateFusionEnhancedBP | sums | overlap stride40 | **320** | 12.50/8.31 | 12.66/8.45 | 10.54/7.37 | **11.90** | **8.04** |
-| **no_overlap_seq2** | LateFusionEnhancedBP | sums | non-overlap | **320** | 12.54/8.34 | 12.70/8.52 | 10.50/7.39 | **11.91** | **8.08** |
-| lf_enhanced_reg | LateFusionEnhancedBP | sums | non-overlap | 160 | 13.82/9.33 | 16.77/9.41 | 13.63/8.86 | **14.74** | **9.20** |
-| lf_enhanced_sums_bs8 | LateFusionEnhancedBP | sums | non-overlap | 160 | 12.71/8.84 | 13.81/9.09 | 11.86/8.14 | **12.79** | **8.69** |
+| Experiment | Backbone | Fusion | Data | Frames | Avg sys | Avg dia |
+|------------|----------|--------|------|--------|---------|---------|
+| overlap_seq2 | LateFusionEnhancedBP | sums | overlap stride40 | **320** | **11.90** | **8.04** |
+| no_overlap_seq2 | LateFusionEnhancedBP | sums | non-overlap | **320** | **11.91** | **8.08** |
+| lf_enhanced_reg | LateFusionEnhancedBP | sums | non-overlap | 160 | **14.74** | **9.20** |
+| lf_enhanced_sums_bs8 | LateFusionEnhancedBP | sums | non-overlap | 160 | **12.79** | **8.69** |
 | enhanced_demo | LateFusionEnhancedBPDemo | sums | overlap | 160 | 12.57/8.31 | 12.65/8.50 | 10.48/7.41 | **11.90** | **8.07** |
 | lf_uncertainty | LateFusionEnhancedBP | sums | overlap | 160 | 12.53/8.30 | 12.65/8.46 | 10.55/7.45 | **11.91** | **8.07** |
 | lf_concat_bs8 | LateFusionEnhancedBP | concat | non-overlap | 160 | - | - | - | **~12.8** | **~8.7** |
@@ -115,38 +130,47 @@
 
 ---
 
-## 下一步实验计划
+## 公平对比实验（非overlap，统一配置）
 
-### 必做实验
+### 实验矩阵
 
-| Experiment | Backbone | Modal | Data | Frames | 状态 |
-|------------|----------|-------|------|--------|------|
-| front_overlap_seq2 | InfinitePulseEnhancedBP | **front only** | overlap stride40 | 320 | ❌ 待做 |
-| back_overlap_seq2 | InfinitePulseEnhancedBP | **back only** | overlap stride40 | 320 | ✅ 完成 (11.88) |
-| dual_overlap_seq2 | LateFusionEnhancedBP | front+back | overlap stride40 | 320 | ✅ 完成 (11.90) |
+| exp# | Modal | seq_mult | Frames | batch | status |
+|------|-------|----------|--------|-------|--------|
+| 1 | back | 2 | 320 | 2 | ✅ 11.88 |
+| 2 | front | 2 | 320 | 2 | ✅ 11.85 |
+| 3 | dual | 2 | 320 | 2 | ✅ 11.91 |
+| 4 | back | 4 | 640 | 2 | ✅ 11.92 |
+| 5 | front | 4 | 640 | 2 | ✅ 11.90 |
+| 6 | dual | 4 | 640 | 1 | ✅ 11.96 |
+| 7 | back | 6 | 960 | 1 | 🔄 sweep |
+| 8 | front | 6 | 960 | 1 | 🔄 sweep |
+| 9 | dual | 6 | 960 | 1 | 🔄 sweep |
+| 10 | back | 8 | 1280 | 1 | 🔄 sweep |
+| 11 | front | 8 | 1280 | 1 | 🔄 sweep |
+| 12 | dual | 8 | 1280 | 1 | 🔄 sweep |
 
-### 改进融合实验
+### 运行方式
 
-| Experiment | 融合方式 | 预期效果 | 状态 |
-|------------|----------|----------|------|
-| concat_fusion | concat + MLP | 保留信息，可能优于 sums | ❌ 待做 |
-| cross_attention | Cross-Attention | 动态关注互补区域 | ❌ 待做 |
-| gated_fusion | Gated Fusion | 动态权重融合 | ❌ 待做 |
+使用 wandb sweep 管理后续实验 (exp#7-12):
+
+```bash
+# 在项目目录下：
+wandb sweep sweep_config.yaml
+wandb agent <sweep_id>
+```
 
 ---
 
 ## 实验日志文件列表
 
-所有完成的实验日志：
-- `train_back_overlap_seq2.log` - 单视角 back + overlap seq2
-- `train_overlap_seq2.log` - 双视角 + overlap seq2
-- `train_no_overlap_seq2.log` - 双视角 + non-overlap seq2
-- `train_enhancedBP_back_4gpu.log` - 单视角 back + overlap (160帧)
-- `train_seq320.log` - 单视角 Multitask + overlap (320帧)
-- `train_seq640.log` - 单视角 Multitask + overlap (640帧)
-- `train_enhanced_demo.log` - 双视角 Demo + demographics
-- `train_lf_uncertainty.log` - 双视角 + uncertainty loss
-- 其他 fusion variant 实验...
+### 公平对比实验（非overlap，本阶段）
+- `train_back_seq2.log` / `train_front_seq2.log` / `train_dual_seq2.log`
+- `train_back_seq4.log` / `train_front_seq4.log` / `train_dual_seq4.log`
+
+### 历史实验（旧配置）
+- `train_back_overlap_seq2.log` / `train_overlap_seq2.log` / `train_no_overlap_seq2.log`
+- `train_enhancedBP_back_4gpu.log` / `train_seq320.log` / `train_seq640.log`
+- `train_enhanced_demo.log` / `train_lf_uncertainty.log`
 
 ---
 
