@@ -1,0 +1,17 @@
+program: run_sweep_agent_direct.py
+command:
+  - /root/miniconda3/envs/f3mamba/bin/python
+  - ${program}
+method: grid
+name: DP-BP-seq68
+description: "Remaining experiments: seq_mult=6,8 with back/front/dual"
+
+metric:
+  name: bp_sys_MAE
+  goal: minimize
+
+parameters:
+  modal:
+    values: ["back", "front", "dual"]
+  seq_mult:
+    values: [6, 8]

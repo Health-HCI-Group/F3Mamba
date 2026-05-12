@@ -153,10 +153,14 @@
 
 使用 wandb sweep 管理后续实验 (exp#7-12):
 
+- **Sweep ID**: `q96i39oh`
+- **Dashboard**: https://wandb.ai/2796321819-beihang-university/F3Mamba/sweeps/q96i39oh
+- **Config**: `sweep_config_direct.yaml`
+- **运行命令**: `wandb agent 2796321819-beihang-university/F3Mamba/q96i39oh`
+
+备用脚本（无需 sweep）:
 ```bash
-# 在项目目录下：
-wandb sweep sweep_config.yaml
-wandb agent <sweep_id>
+bash run_remaining_experiments.sh
 ```
 
 ---
