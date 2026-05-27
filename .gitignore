@@ -1,0 +1,15 @@
+ProcessedDataset/
+checkpoints/
+predictions/
+wandb/
+logs/
+
+*.log
+*.npz
+*.h5
+
+__pycache__/
+*.pyc
+
+# Local tool/session data
+.openchamber/
