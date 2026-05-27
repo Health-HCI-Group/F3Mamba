@@ -1,0 +1,28 @@
+{
+  "config": {
+    "batch_size": 4,
+    "bp_dropout": 0.2,
+    "bp_hidden_dim": 192,
+    "epochs": 20,
+    "initial_mask_ratio": 0.7,
+    "lr": 0.00015,
+    "recon_loss_weight": 0.1,
+    "shared_encoder": "False",
+    "weight_decay": 1e-06
+  },
+  "resolved_config": {
+    "lr": 0.00015,
+    "batch_size": 4,
+    "epochs": 20,
+    "weight_decay": 1e-06,
+    "initial_mask_ratio": 0.7,
+    "shared_encoder": false,
+    "bp_hidden_dim": 192,
+    "bp_dropout": 0.2,
+    "recon_loss_weight": 0.1
+  },
+  "fold_results": [
+    {
+      "mae_sys": 12.81,
+      "mae_dia": 8.38,
+      "pearson_sys": 

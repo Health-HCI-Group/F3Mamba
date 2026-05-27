@@ -1,0 +1,59 @@
+{
+  "config": {
+    "batch_size": 4,
+    "bp_dropout": 0.2,
+    "bp_hidden_dim": 128,
+    "epochs": 20,
+    "initial_mask_ratio": 0.9,
+    "lr": 6.25e-05,
+    "recon_loss_weight": 0.05,
+    "shared_encoder": "True",
+    "weight_decay": 1e-05
+  },
+  "resolved_config": {
+    "model_version": "v2",
+    "lr": 6.25e-05,
+    "batch_size": 4,
+    "epochs": 20,
+    "eval_every_epochs": 5,
+    "weight_decay": 1e-05,
+    "initial_mask_ratio": 0.9,
+    "shared_encoder": true,
+    "bp_hidden_dim": 128,
+    "bp_dropout": 0.2,
+    "recon_loss_weight": 0.05,
+    "bvp_loss_weight": 0.6
+  },
+  "fold_results": [
+    {
+      "mae_sys": 12.51,
+      "mae_dia": 8.33,
+      "pearson_sys": -0.1077,
+      "pearson_dia": -0.0801,
+      "hr_mae": 4.8250726712015455,
+      "hr_rmse": 14.784006190846725,
+      "hr_pearson": 0.233200373926738
+    },
+    {
+      "mae_sys": 12.76,
+      "mae_dia": 8.52,
+      "pearson_sys": -0.1726,
+      "pearson_dia": 0.0135,
+      "hr_mae": 1.6375831131500258,
+      "hr_rmse": 3.7816221971390287,
+      "hr_pearson": 0.9567244245514089
+    },
+    {
+      "mae_sys": 10.54,
+      "mae_dia": 7.54,
+      "pearson_sys": -0.0928,
+      "pearson_dia": -0.0821,
+      "hr_mae": 3.888388838883888,
+      "hr_rmse": 10.876012322457111,
+      "hr_pearson": 0.5799588868773411
+    }
+  ],
+  "avg_mae_sys": 11.936666666666667,
+  "avg_pearson_sys": -0.12436666666666667,
+  "completed": true
+}

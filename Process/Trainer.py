@@ -8,12 +8,15 @@ from tqdm import tqdm
 import sys
 import wandb
 
-sys.path.append(r"/data01/zt/Process")
-from PostProcess import calculate_metric_simple_inference
-from metrics import calculate_metrics_simple
+import sys
+import os
+# 添加本地 Process 路径
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "Process"))
+from Process.PostProcess import calculate_metric_simple_inference
+from Process.metrics import calculate_metrics_simple
 
-sys.path.append(r"/data01/zt/Loss")
-import TorchLossComputer
+# 使用本地的 TorchLossComputer
+from Process import TorchLossComputer
 
 
 class BaseProcessor:
@@ -57,10 +60,13 @@ class BaseProcessor:
             elif self.args.video_backbone == "PhysMamba":
                 video_input = data_input[modal].permute(0,4,1,3,2)
                 pred_ppg = self.model(video_input)
+            elif self.args.video_backbone == "InfinitePulse":
+                video_input = data_input[modal]  # NHWC: (B, L, H, W, C) — model handles permute internally
+                pred_ppg = self.model(video_input)
 
-        # Normalize predictions and labels
-        pred_ppg = (pred_ppg - torch.mean(pred_ppg)) / (torch.std(pred_ppg) + 1e-8)
-        label_ppg = (label_ppg - torch.mean(label_ppg)) / (torch.std(label_ppg) + 1e-8)
+        # Normalize predictions and labels (per-sample z-score, matching FacePhys)
+        pred_ppg = (pred_ppg - pred_ppg.mean(dim=-1, keepdim=True)) / (pred_ppg.std(dim=-1, keepdim=True) + 1e-8)
+        label_ppg = (label_ppg - label_ppg.mean(dim=-1, keepdim=True)) / (label_ppg.std(dim=-1, keepdim=True) + 1e-8)
 
         return pred_ppg, label_ppg
 
@@ -125,6 +131,9 @@ class Trainer():
         
         # Test configuration
         if self.args.dataset_name == "Lab_multimodal":
+            self.hr_calculate_batch_step = 4
+            self.video_Hz = 30
+        elif self.args.dataset_name == "AZDualCamera":
             self.hr_calculate_batch_step = 4
             self.video_Hz = 30
         else:

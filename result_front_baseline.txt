@@ -1,0 +1,4 @@
+fold1: mae_sys=12.69 mae_dia=8.29 me_sys=-2.16 std_sys=15.91 me_dia=-1.69 std_dia=10.46 mae_hr=6.47 me_hr=-2.62 std_hr=13.22 pearson_sys=-0.0801 pearson_dia=0.1400 pearson_hr=0.4744
+fold2: mae_sys=12.77 mae_dia=8.54 me_sys=2.18 std_sys=16.12 me_dia=-0.44 std_dia=9.92 mae_hr=7.15 me_hr=-2.02 std_hr=14.33 pearson_sys=-0.0791 pearson_dia=0.0221 pearson_hr=0.5032
+fold3: mae_sys=10.53 mae_dia=7.53 me_sys=-0.12 std_sys=13.40 me_dia=2.12 std_dia=9.04 mae_hr=7.10 me_hr=-0.36 std_hr=14.58 pearson_sys=-0.0465 pearson_dia=0.0825 pearson_hr=0.4607
+avg: mae_sys=11.99 pearson_sys=-0.0685 me_sys=-0.03 std_sys=15.14 me_dia=-0.00 std_dia=9.81 mae_hr=6.91 me_hr=-1.67 std_hr=14.04 pearson_hr=0.4795

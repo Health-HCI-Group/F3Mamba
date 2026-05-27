@@ -5,6 +5,15 @@ import torch
 import torch.nn as nn
 from torch.nn.modules.utils import _triple
 
+
+class TNM(nn.Module):
+    """Temporal Neg Max - 时间维度上的负最大池化"""
+    def __init__(self):
+        super(TNM, self).__init__()
+    
+    def forward(self, x):
+        return x
+
 class PhysNet_padding_Encoder(nn.Module):
     def __init__(self, frames=128):
         super(PhysNet_padding_Encoder, self).__init__()

@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 import torch
+import sys, os
+sys.path.append(os.path.dirname(__file__))
 from PostProcess import *
 from tqdm import tqdm
 from scipy.stats import gaussian_kde

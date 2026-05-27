@@ -20,7 +20,10 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader, Dataset, ConcatDataset, Subset
 from torch.utils.data.distributed import DistributedSampler
 from torch import nn
-from torch.amp import autocast, GradScaler
+try:
+    from torch.amp import autocast, GradScaler
+except ImportError:
+    from torch.cuda.amp import autocast, GradScaler
 import random
 import re
 import argparse
@@ -70,6 +73,27 @@ except ImportError:
     EarlyFusionInfinitePulse = None
     LateFusionInfinitePulse = None
 
+try:
+    from Models.FusionInfinitePulse_v2 import LateFusionEnhancedBPv2, NegPearsonLoss, pearson_correlation
+except ImportError:
+    LateFusionEnhancedBPv2 = None
+    NegPearsonLoss = None
+
+try:
+    from Models.BPHead_PTT import LateFusionBPHeadPTT
+except ImportError:
+    LateFusionBPHeadPTT = None
+
+try:
+    from Models.xMAE_Model import xMAEBPModel
+except ImportError:
+    xMAEBPModel = None
+
+try:
+    from Models.xMAE_Model_V2 import xMAEBPModelV2
+except ImportError:
+    xMAEBPModelV2 = None
+
 from Process.PostProcess import calculate_metric_simple_inference
 from Process.metrics import calculate_metrics_simple
 
@@ -94,7 +118,11 @@ FUSION_BACKBONES = {'EarlyFusionInfinitePulse', 'LateFusionInfinitePulse',
                      'LateFusionInfinitePulseMultitask', 'LateFusionInfinitePulseEnhancedBP',
                      'LateFusionInfinitePulseEnhancedBPDemo',
                      'LateFusionInfinitePulseClassifier',
-                     'FreqAlignLateFusionMultitask'}
+                     'FreqAlignLateFusionMultitask',
+                     'LateFusionEnhancedBPv2',
+                     'LateFusionBPHeadPTT',
+                     'xMAEBPModel',
+                     'xMAEBPModelV2'}
 MULTITASK_BACKBONES = {'InfinitePulseMultitask', 'InfinitePulseEnhancedBP'}
 TARGET_LABELS = ['bvp', 'spo2', 'bp_sys', 'bp_dia']
 
@@ -235,6 +263,16 @@ def reduce_sum(tensor, world_size):
 
 
 def get_args():
+    def parse_bool(v):
+        if isinstance(v, bool):
+            return v
+        val = str(v).strip().lower()
+        if val in ('1', 'true', 't', 'yes', 'y'):
+            return True
+        if val in ('0', 'false', 'f', 'no', 'n'):
+            return False
+        raise argparse.ArgumentTypeError(f'Invalid boolean value: {v}')
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--video_backbone', type=str, default='InfinitePulseMultitask',
                         choices=['InfinitePulse', 'InfinitePulseMultitask', 'InfinitePulseEnhancedBP',
@@ -246,7 +284,11 @@ def get_args():
                                  'LateFusionInfinitePulseEnhancedBP',
                                   'LateFusionInfinitePulseClassifier',
                                   'LateFusionInfinitePulseEnhancedBPDemo',
-                                  'FreqAlignLateFusionMultitask'])
+                                  'FreqAlignLateFusionMultitask',
+                                    'LateFusionEnhancedBPv2',
+                                    'LateFusionBPHeadPTT',
+                                    'xMAEBPModel',
+                                    'xMAEBPModelV2'])
     parser.add_argument('--dataset_name', type=str, default='AZDualCamera')
     parser.add_argument('--front_standard_type', type=str, default='facephys')
     parser.add_argument('--label_standard_type', type=str, default='facephys')
@@ -294,9 +336,31 @@ def get_args():
                         help='Loss weight for BP systolic (MSE)')
     parser.add_argument('--loss_weight_bp_dia', type=float, default=0.5,
                         help='Loss weight for BP diastolic (MSE)')
+    parser.add_argument('--pearson_loss_weight', type=float, default=0.0,
+                        help='Weight for BP Pearson correlation loss (0=disabled)')
     parser.add_argument('--fusion_mode', type=str, default='concat',
                         choices=['concat', 'sums', 'conv'],
                         help='Late fusion mode (LateFusionInfinitePulseMultitask)')
+    # BP Head with PTT parameters
+    parser.add_argument('--bp_fusion_mode', type=str, default='concat',
+                        choices=['concat', 'weighted_sum'],
+                        help='BP Head PTT fusion mode')
+    parser.add_argument('--ptt_weight', type=float, default=1.0,
+                        help='PTT feature weight relative to shared_feat')
+    parser.add_argument('--bp_hidden_dim', type=int, default=64,
+                        help='BP Head MLP hidden dimension')
+    parser.add_argument('--bp_dropout', type=float, default=0.2,
+                        help='BP Head MLP dropout rate')
+    parser.add_argument('--bp_head_type', type=str, default='with_shared',
+                        choices=['with_shared', 'ptt_only'],
+                        help='BP Head type: with_shared (fusion) or ptt_only (PTT only)')
+    # xMAE model parameters
+    parser.add_argument('--mask_ratio', type=float, default=0.85,
+                        help='xMAE mask ratio for cross-modal reconstruction')
+    parser.add_argument('--shared_encoder', type=parse_bool, default=True,
+                        help='xMAE: share encoder weights between views')
+    parser.add_argument('--recon_loss_weight', type=float, default=0.1,
+                        help='Auxiliary reconstruction loss weight for xMAE variants')
     return parser.parse_args()
 
 
@@ -442,9 +506,52 @@ def create_model(args):
         model = LateFusionInfinitePulseEnhancedBPDemo(n_layers=[2, 2, 2, 2], filters=[32, 32, 32, 32], chunk_size=args.seq_len, shared_backbone=True, fusion_mode=args.fusion_mode)
     elif args.video_backbone == 'FreqAlignLateFusionMultitask':
         model = FreqAlignLateFusionMultitask(n_layers=[2, 2, 2, 2], filters=[32, 32, 32, 32], chunk_size=args.seq_len, shared_backbone=True)
+    elif args.video_backbone == 'LateFusionEnhancedBPv2':
+        model = LateFusionEnhancedBPv2(n_layers=[2, 2, 2, 2], filters=[32, 32, 32, 32], chunk_size=args.seq_len, shared_backbone=True, fusion_mode=args.fusion_mode)
+    elif args.video_backbone == 'LateFusionBPHeadPTT':
+        model = LateFusionBPHeadPTT(
+            n_layers=[2, 2, 2, 2], 
+            filters=[32, 32, 32, 32], 
+            chunk_size=args.seq_len, 
+            shared_backbone=True, 
+            fusion_mode=args.fusion_mode,
+            bp_fusion_mode=args.bp_fusion_mode,
+            ptt_weight=args.ptt_weight,
+            bp_hidden_dim=args.bp_hidden_dim,
+            bp_dropout=args.bp_dropout,
+            bp_head_type=args.bp_head_type
+        )
+    elif args.video_backbone == 'xMAEBPModel':
+        if xMAEBPModel is None:
+            raise ImportError('xMAEBPModel is not available. Check Models/xMAE_Model.py and dependencies.')
+        model = xMAEBPModel(
+            n_layers=[2, 2, 2, 2], 
+            filters=[32, 32, 32, 32], 
+            chunk_size=args.seq_len,
+            initial_mask_ratio=args.mask_ratio,
+            shared_encoder=args.shared_encoder,
+            bp_hidden_dim=args.bp_hidden_dim,
+            bp_dropout=args.bp_dropout
+        )
+    elif args.video_backbone == 'xMAEBPModelV2':
+        if xMAEBPModelV2 is None:
+            raise ImportError('xMAEBPModelV2 is not available. Check Models/xMAE_Model_V2.py and dependencies.')
+        model = xMAEBPModelV2(
+            n_layers=[2, 2, 2, 2],
+            filters=[32, 32, 32, 32],
+            chunk_size=args.seq_len,
+            initial_mask_ratio=args.mask_ratio,
+            shared_encoder=args.shared_encoder,
+            bp_hidden_dim=args.bp_hidden_dim,
+            bp_dropout=args.bp_dropout
+        )
     else:
         raise ValueError(f"Unknown backbone: {args.video_backbone}")
     return model
+
+
+def build_model(args):
+    return create_model(args)
 
 
 def zscore_normalize(x):
@@ -465,6 +572,10 @@ def process_batch_multitask(model, batch, device, args):
     modal = args.modal_used[0]
 
     if args.video_backbone in FUSION_BACKBONES:
+        required_modal_keys = ['video_front', 'video_back']
+        missing = [k for k in required_modal_keys if k not in batch['modals']]
+        if missing:
+            raise KeyError(f'Missing required modal keys for fusion backbone: {missing}')
         video_input = {
             "front": batch["modals"]["video_front"].to(device),
             "back": batch["modals"]["video_back"].to(device),
@@ -492,6 +603,10 @@ def process_batch_multitask(model, batch, device, args):
     output = raw_model(video_input)
 
     results = {}
+    # xMAE reconstruction loss
+    if 'recon_loss' in output:
+        results['recon_loss'] = output['recon_loss']
+    
     if "bvp" in batch["labels"]:
         pred_bvp = zscore_normalize(output["rPPG"])
         label_bvp = zscore_normalize(batch["labels"]["bvp"].to(device))
@@ -562,6 +677,7 @@ class MultiTaskLoss(nn.Module):
             'spo2': args.loss_weight_spo2,
             'bp_sys': args.loss_weight_bp_sys,
             'bp_dia': args.loss_weight_bp_dia,
+            'pearson_bp': args.pearson_loss_weight,
         }
         self.neg_pearson = NegPearson()
         self.mse = nn.MSELoss()
@@ -569,6 +685,11 @@ class MultiTaskLoss(nn.Module):
         self.cls_weight = cls_weight if cls_weight > 0 else 0.0
         self.ce = nn.CrossEntropyLoss(reduction='none')
         self.args = args
+        
+        if args.pearson_loss_weight > 0 and NegPearsonLoss is not None:
+            self.bp_pearson_loss = NegPearsonLoss()
+        else:
+            self.bp_pearson_loss = None
 
     def forward(self, results, device):
         total = 0.0
@@ -589,7 +710,7 @@ class MultiTaskLoss(nn.Module):
             else:
                 l = l.mean()
             losses['bp_cls'] = l
-            total += self.weights['bp_sys'] * l  # reuse bp_sys weight for classification
+            total += self.weights['bp_sys'] * l
 
         for key in ['spo2', 'bp_sys', 'bp_dia']:
             pk, lk = f'pred_{key}', f'label_{key}'
@@ -597,6 +718,18 @@ class MultiTaskLoss(nn.Module):
                 l = self.mse(results[pk], results[lk])
                 losses[key] = l
                 total += self.weights[key] * l
+        
+        if self.bp_pearson_loss is not None and 'pred_bp_sys' in results and 'label_bp_sys' in results:
+            l_pearson_sys = self.bp_pearson_loss(results['pred_bp_sys'], results['label_bp_sys'])
+            l_pearson_dia = self.bp_pearson_loss(results['pred_bp_dia'], results['label_bp_dia'])
+            losses['pearson_bp_sys'] = l_pearson_sys
+            losses['pearson_bp_dia'] = l_pearson_dia
+            total += self.weights['pearson_bp'] * (l_pearson_sys + l_pearson_dia)
+
+        # xMAE reconstruction loss (cross-modal masking)
+        if 'recon_loss' in results:
+            losses['recon'] = results['recon_loss']
+            total += results['recon_loss'] * self.args.recon_loss_weight
 
         return total, losses
 
@@ -824,7 +957,7 @@ class DDPTrainerMultitask:
             self.scheduler = torch.optim.lr_scheduler.LambdaLR(
                 self.optimizer, lr_lambda=lambda epoch: 1.0)
 
-        self.scaler = GradScaler(device='cuda') if self.use_amp else None
+        self.scaler = GradScaler() if self.use_amp else None
 
         if args.dataset_name in ("Lab_multimodal", "AZDualCamera"):
             self.hr_calculate_batch_step = 4
@@ -885,7 +1018,7 @@ class DDPTrainerMultitask:
 
         for idx, batch in enumerate(pbar):
             if self.use_amp:
-                with autocast('cuda'):
+                with autocast():
                     loss, sub_losses, _ = self._compute_loss(batch)
                     loss = loss / self.grad_accum
                 if torch.isnan(loss) or torch.isinf(loss):
@@ -944,7 +1077,7 @@ class DDPTrainerMultitask:
         with torch.no_grad():
             for batch in pbar:
                 if self.use_amp:
-                    with autocast('cuda'):
+                    with autocast():
                         loss, sub_losses, _ = self._compute_loss(batch)
                 else:
                     loss, sub_losses, _ = self._compute_loss(batch)

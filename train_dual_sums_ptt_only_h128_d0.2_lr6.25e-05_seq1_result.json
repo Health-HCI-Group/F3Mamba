@@ -1,0 +1,16 @@
+{
+  "modal": "dual",
+  "fusion_mode": "sums",
+  "bp_head_type": "ptt_only",
+  "bp_hidden_dim": 128,
+  "bp_dropout": 0.2,
+  "lr": 6.25e-05,
+  "seq_mult": 1,
+  "backbone": "LateFusionBPHeadPTT",
+  "completed": true,
+  "oom": false,
+  "bp_sys_avg": 13.96,
+  "bp_dia_avg": 10.75,
+  "bp_sys_pearson": null,
+  "bp_dia_pearson": 0.0122
+}

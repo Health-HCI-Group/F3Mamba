@@ -1,0 +1,4 @@
+fold1: mae_sys=12.50 mae_dia=8.28 pearson_sys=0.1671 pearson_dia=0.2930
+fold2: mae_sys=12.76 mae_dia=8.53 pearson_sys=-0.1006 pearson_dia=-0.0109
+fold3: mae_sys=10.52 mae_dia=7.54 pearson_sys=-0.0850 pearson_dia=0.0738
+avg: mae_sys=11.93 pearson_sys=-0.0062

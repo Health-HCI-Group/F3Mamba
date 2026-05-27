@@ -1,0 +1,10 @@
+experiment,model,view,fold,mae_sys,me_sys,std_sys,pearson_sys,hr_mae,hr_pearson,hr_method
+V2_dual,xMAEBPModelV2,dual,1,12.6,-2.12,15.88,-0.1186,,,N/A
+V2_dual,xMAEBPModelV2,dual,2,12.77,2.01,16.12,-0.2003,,,N/A
+V2_dual,xMAEBPModelV2,dual,3,10.53,-0.39,13.38,-0.0927,,,N/A
+Front_only,SingleViewModel,front,1,12.69,-2.16,15.91,-0.0801,6.47,0.4744,window=160 (wrong)
+Front_only,SingleViewModel,front,2,12.77,2.18,16.12,-0.0791,7.15,0.5032,window=160 (wrong)
+Front_only,SingleViewModel,front,3,10.53,-0.12,13.4,-0.0465,7.1,0.4607,window=160 (wrong)
+Back_only,SingleViewModel,back,1,12.21,-3.62,14.82,0.3736,2.3,0.7238,window=640 (standard)
+Back_only,SingleViewModel,back,2,12.66,2.18,16.06,0.0771,1.18,0.9676,window=640 (standard)
+Back_only,SingleViewModel,back,3,10.58,0.0,13.39,-0.0049,2.61,0.7356,window=640 (standard)

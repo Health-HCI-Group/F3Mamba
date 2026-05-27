@@ -1,0 +1,74 @@
+{
+  "config": {
+    "align_blend": 0.05,
+    "align_mode": "none",
+    "avoid_edge_shift": true,
+    "batch_size": 2,
+    "bp_dropout": 0.05,
+    "bp_hidden_dim": 64,
+    "bp_huber_delta": 1,
+    "bp_loss_type": "smooth_l1",
+    "bvp_loss_weight": 0.6,
+    "delay_max_shift": 12,
+    "initial_mask_ratio": 0.9,
+    "lr": 6.25e-05,
+    "min_corr_improve": 0.03,
+    "model_version": "v3",
+    "recon_loss_weight": 0.1,
+    "shared_encoder": true,
+    "weight_decay": 1e-05
+  },
+  "resolved_config": {
+    "model_version": "v3",
+    "lr": 6.25e-05,
+    "batch_size": 2,
+    "epochs": 20,
+    "eval_every_epochs": 5,
+    "weight_decay": 1e-05,
+    "initial_mask_ratio": 0.9,
+    "shared_encoder": true,
+    "bp_hidden_dim": 64,
+    "bp_dropout": 0.05,
+    "recon_loss_weight": 0.1,
+    "bvp_loss_weight": 0.6,
+    "align_mode": "none",
+    "delay_max_shift": 12,
+    "align_blend": 0.05,
+    "min_corr_improve": 0.03,
+    "avoid_edge_shift": true,
+    "bp_loss_type": "smooth_l1",
+    "bp_huber_delta": 1.0
+  },
+  "fold_results": [
+    {
+      "mae_sys": 12.56,
+      "mae_dia": 8.36,
+      "pearson_sys": -0.146,
+      "pearson_dia": 0.2597,
+      "hr_mae": 4.14336515618775,
+      "hr_rmse": 12.607498081864533,
+      "hr_pearson": 0.3848690187042337
+    },
+    {
+      "mae_sys": 12.75,
+      "mae_dia": 8.52,
+      "pearson_sys": -0.1794,
+      "pearson_dia": -0.0868,
+      "hr_mae": 2.404111378879824,
+      "hr_rmse": 7.101314376511539,
+      "hr_pearson": 0.8668209514831223
+    },
+    {
+      "mae_sys": 10.52,
+      "mae_dia": 7.43,
+      "pearson_sys": 0.0093,
+      "pearson_dia": 0.2088,
+      "hr_mae": 2.741812642802742,
+      "hr_rmse": 8.835480574259844,
+      "hr_pearson": 0.6974654284561421
+    }
+  ],
+  "avg_mae_sys": 11.943333333333333,
+  "avg_pearson_sys": -0.10536666666666668,
+  "completed": true
+}

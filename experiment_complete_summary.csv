@@ -1,0 +1,6 @@
+experiment,model,view,fold,status,hr_method,mae_sys,me_sys,std_sys,pearson_sys,mae_dia,me_dia,std_dia,pearson_dia,hr_mae,hr_pearson
+V2_dual_baseline,xMAEBPModelV2,dual,avg,complete,N/A,11.96,-0.16,15.12,-0.137,8.32,-0.06,9.81,0.11,,
+front_only,SingleViewModel,front,avg,complete,window=160 (WRONG),11.99,-0.03,15.14,-0.069,8.12,-0.0,9.81,0.08,6.91,0.48
+PTT_baseline,PTT-handcrafted,N/A,avg,historical,N/A,11.27,,,0.3065,7.64,,,0.2968,,
+BDF80,BackPrimaryDualModel,dual(BDF80:back80/front20),avg,complete,window=640 (standard),11.79,-0.25,14.64,0.2644,8.08,-0.45,9.54,0.2413,2.19,0.7384
+back_only,SingleViewModel,back,avg,complete,window=640 (standard),11.82,-0.48,14.76,0.1486,7.92,-0.43,9.51,0.2702,2.03,0.8090
