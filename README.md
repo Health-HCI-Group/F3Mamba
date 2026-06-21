@@ -1,4 +1,4 @@
-# $\mathrm{M}^3\text{PD}$ Dataset: Dual-view  Photoplethysmography (PPG) Using Front-and-rear Cameras of Smartphones in Lab and Clinical Settings
+# $\mathrm{M}^3\text{PD}$ Dataset: Dual-view  Photoplethysmography (PPG) Using Front-and-rear Cameras of Smartphones in Lab and Clinical Settings (IMWUT 2026)
 
 ---
 
@@ -160,7 +160,7 @@ trainer.train(train_loader, val_loader)
 
 There are two ways for downloads： OneDrive and Baidu Netdisk. 
 
-To access the dataset, you are supposed to download this [data release agreement TBD].  
+To access the dataset, you are supposed to download this [data release agreement](https://github.com/Health-HCI-Group/F3Mamba/blob/main/M3PD_Release_Agreement_2026.pdf).  
 Please scan and dispatch the completed agreement via your institutional email to <tjk24@mails.tsinghua.edu.cn> and cc <yuntaowang@tsinghua.edu.cn>. The email should have the subject line 'LADH Access Request -  your institution.' In the email,  outline your institution's **website** and **publications** for seeking access to the LADH, including its intended application in your specific research project. The email should be sent by a **faculty** rather than a student.   
 
 ## 📊 Results
@@ -199,11 +199,15 @@ Please scan and dispatch the completed agreement via your institutional email to
 If you find this work useful, please cite our paper:
 
 ```bibtex
-@article{tang2025dual,
-  title={Dual-Camera Fusion for Robust Video-Based Photoplethysmography on Smartphones},
-  author={Jiankai Tang, Tao Zhang, Jia Li, Yiru Zhang, Mingyu Zhang, Kegang Wang, Yuming Hao, Bolin Wang, Haiyang Li, Yuanchun Shi, Yuntao Wang, and Sichong Qian},
-  journal={arxiv},
-  year={2025}
+@article{tang2026m3pd,
+  title={M3PD Dataset: Enabling Dual-view Photoplethysmography on Smartphones in Lab and Clinical Settings},
+  author={Tang, Jiankai and Zhang, Tao and Li, Jia and Wang, Yuntao and Zhang, Yiru and Zhang, Mingyu and Wang, Kegang and Hao, Yuming and Wang, Bolin and Li, Haiyang and others},
+  journal={Proceedings of the ACM on Interactive, Mobile, Wearable and Ubiquitous Technologies},
+  volume={10},
+  number={2},
+  pages={1--32},
+  year={2026},
+  publisher={ACM New York, NY, USA}
 }
 ```
 
